@@ -2,19 +2,29 @@ import 'dart:io';
 import 'package:llama_dart/llama_dart.dart';
 
 void main(List<String> args) async {
+  final defaultModelPath = 'models/gemma-3-1b-it-Q4_K_M.gguf';
+  
+  String modelPath;
   if (args.isEmpty) {
-    print('Usage: dart chat_cli.dart <model_path> [options]');
-    print('Options:');
-    print('  --threads <n>      Number of threads (default: 4)');
-    print('  --context <n>      Context size (default: 2048)');
-    print('  --batch <n>        Batch size (default: 512)');
-    print('  --temp <f>         Temperature (default: 0.7)');
-    print('  --top-p <f>        Top-p sampling (default: 0.9)');
-    print('  --max-tokens <n>   Max tokens to generate (default: 512)');
-    exit(1);
+    if (File(defaultModelPath).existsSync()) {
+      modelPath = defaultModelPath;
+      print('Using default model: $modelPath');
+    } else {
+      print('Usage: dart chat_cli.dart [model_path] [options]');
+      print('Default model not found at: $defaultModelPath');
+      print('Run ./download_gemma.sh to download the default model');
+      print('Options:');
+      print('  --threads <n>      Number of threads (default: 4)');
+      print('  --context <n>      Context size (default: 2048)');
+      print('  --batch <n>        Batch size (default: 512)');
+      print('  --temp <f>         Temperature (default: 0.7)');
+      print('  --top-p <f>        Top-p sampling (default: 0.9)');
+      print('  --max-tokens <n>   Max tokens to generate (default: 512)');
+      exit(1);
+    }
+  } else {
+    modelPath = args[0];
   }
-
-  final modelPath = args[0];
   
   var threads = 4;
   var contextSize = 2048;
@@ -44,6 +54,14 @@ void main(List<String> args) async {
         maxTokens = int.parse(args[++i]);
         break;
     }
+  }
+
+  if (!File(modelPath).existsSync()) {
+    print('Error: Model file not found at: $modelPath');
+    if (modelPath != defaultModelPath) {
+      print('You can also run ./download_gemma.sh to download the default model');
+    }
+    exit(1);
   }
 
   print('Initializing LLaMA model...');
@@ -114,14 +132,14 @@ void main(List<String> args) async {
       try {
         final response = await llama.chat(request);
         
-        print(response.content);
+        print(response.content.trimRight());
         print('');
         print('(Generated ${response.tokensGenerated} tokens in ${response.generationTime.inMilliseconds}ms)');
         print('');
 
         messages.add(ChatMessage(
           role: 'assistant',
-          content: response.content,
+          content: response.content.trimRight(),
         ));
       } catch (e) {
         print('Error: $e');

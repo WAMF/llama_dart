@@ -1,5 +1,9 @@
 include: package:lints/recommended.yaml
 
+analyzer:
+  exclude:
+    - lib/src/ffi/llama_bindings_generated.dart
+
 linter:
   rules:
     - always_declare_return_types

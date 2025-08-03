@@ -17,6 +17,10 @@ build/
 *.gguf
 *.ggml
 *.bin
+models/
+
+# External dependencies
+llama.cpp/
 
 # IDE
 .idea/
