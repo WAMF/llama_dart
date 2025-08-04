@@ -1,7 +1,7 @@
 name: dart_llama
 description: A Dart package for interfacing with llama.cpp models using FFI
 version: 0.1.0
-repository: https://github.com/WAMF/dart_llama
+repository: https://github.com/WAMF/llama_dart
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
