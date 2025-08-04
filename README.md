@@ -4,154 +4,221 @@ A Dart package that provides FFI bindings to llama.cpp for running LLaMA models 
 
 ## Features
 
-- Direct FFI bindings to llama.cpp
-- Simple chat-based API
-- Configurable model parameters
-- Example CLI application for testing
+- **FFI-based bindings** - Direct integration with llama.cpp for maximum performance
+- **Simple chat API** - High-level interface for conversational AI
+- **Configurable parameters** - Fine-tune model behavior with temperature, top-p, and repetition settings
+- **Memory efficient** - Support for memory mapping and model locking
+- **Cross-platform** - Works on macOS, Linux, and Windows (planned)
+- **Type-safe** - Full Dart type safety with proper error handling
 
-## Prerequisites
+## Getting Started
 
-Before using this package, you need to build llama.cpp as a shared library:
+### Prerequisites
 
-```bash
-# Clone llama.cpp
-git clone https://github.com/ggerganov/llama.cpp.git
-cd llama.cpp
+1. **Dart SDK** - Version 3.0.0 or higher
+2. **C/C++ Compiler** - For building the native wrapper
+3. **CMake** - For building llama.cpp
 
-# Build the shared library
-mkdir build
-cd build
-cmake .. -DBUILD_SHARED_LIBS=ON
-make
+### Installation
 
-# Copy the library to your project
-cp libllama.so /path/to/llama_dart/  # Linux
-cp libllama.dylib /path/to/llama_dart/  # macOS
-cp llama.dll /path/to/llama_dart/  # Windows
-```
-
-## Installation
-
-Add this to your package's `pubspec.yaml` file:
+Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  llama_dart:
-    path: /path/to/llama_dart
+  llama_dart: ^1.0.0
+```
+
+### Building the Native Library
+
+This package requires the llama.cpp shared library. Use the provided script:
+
+```bash
+# Clone the repository
+git clone https://github.com/leehiggins/llama_dart.git
+cd llama_dart
+
+# Build llama.cpp library
+./scripts/build_llama.sh
+
+# Optional: Download a test model
+./scripts/download_gemma.sh
 ```
 
 ## Usage
+
+### Basic Example
 
 ```dart
 import 'package:llama_dart/llama_dart.dart';
 
 void main() async {
-  // Configure the model
-  final config = LlamaConfig(
-    modelPath: 'path/to/your/model.gguf',
+  // Initialize the chat with a model
+  final chat = LlamaChat(
+    modelPath: 'models/gemma-3-1b-it-Q4_K_M.gguf',
     contextSize: 2048,
     threads: 4,
   );
 
-  // Initialize the chat
-  final llama = LlamaChat(config);
-  llama.initialize();
-
-  // Create a chat request
-  final request = ChatRequest(
-    messages: [
-      ChatMessage(role: 'system', content: 'You are a helpful assistant.'),
-      ChatMessage(role: 'user', content: 'Hello, how are you?'),
-    ],
+  // Send a message
+  final response = await chat.generateResponse(
+    'Tell me a short story about a robot.',
     temperature: 0.7,
-    maxTokens: 512,
+    maxTokens: 256,
   );
 
-  // Get the response
-  final response = await llama.chat(request);
-  print('Assistant: ${response.content}');
-  print('Generated ${response.tokensGenerated} tokens in ${response.generationTime}');
+  print(response);
 
   // Clean up
-  llama.dispose();
+  chat.dispose();
 }
 ```
 
-## Running the Example CLI
+### Conversation Example
 
-```bash
-# Get a LLaMA model in GGUF format
-# You can download models from https://huggingface.co/TheBloke
+```dart
+final chat = LlamaChat(
+  modelPath: 'path/to/model.gguf',
+  contextSize: 4096,
+);
 
-# Run the example
-dart example/chat_cli.dart path/to/model.gguf --threads 4 --temp 0.7
+// Add system prompt
+chat.addMessage(ChatMessage(
+  role: 'system',
+  content: 'You are a helpful coding assistant.',
+));
 
-# Available options:
-# --threads <n>      Number of threads (default: 4)
-# --context <n>      Context size (default: 2048)
-# --batch <n>        Batch size (default: 512)
-# --temp <f>         Temperature (default: 0.7)
-# --top-p <f>        Top-p sampling (default: 0.9)
-# --max-tokens <n>   Max tokens to generate (default: 512)
+// Have a conversation
+chat.addMessage(ChatMessage(
+  role: 'user',
+  content: 'How do I read a file in Dart?',
+));
+
+final response = await chat.generateResponse();
+print(response);
+
+// Continue the conversation
+chat.addMessage(ChatMessage(
+  role: 'user',
+  content: 'Can you show me an async example?',
+));
+
+final followUp = await chat.generateResponse();
+print(followUp);
 ```
 
-## API Reference
+## Configuration
 
-### LlamaConfig
+### Model Parameters
 
-Configuration for the LLaMA model:
+```dart
+final chat = LlamaChat(
+  modelPath: 'model.gguf',
+  
+  // Context and performance
+  contextSize: 4096,        // Maximum context window
+  batchSize: 512,          // Batch size for processing
+  threads: 8,              // Number of CPU threads
+  
+  // Memory options
+  useMmap: true,           // Memory-map the model
+  useMlock: false,         // Lock model in RAM
+  
+  // Generation defaults
+  temperature: 0.7,        // Creativity level (0.0-1.0)
+  topP: 0.9,              // Nucleus sampling threshold
+  repeatPenalty: 1.1,      // Repetition penalty
+  seed: -1,               // -1 for random seed
+);
+```
 
-- `modelPath`: Path to the GGUF model file
-- `contextSize`: Maximum context size (default: 2048)
-- `batchSize`: Batch size for processing (default: 512)
-- `threads`: Number of threads to use (default: 4)
-- `useMmap`: Use memory mapping (default: true)
-- `useMlock`: Lock model in memory (default: false)
+## Example CLI
+
+Try the included CLI example:
+
+```bash
+# Basic usage
+dart example/chat_cli.dart models/gemma-3-1b-it-Q4_K_M.gguf
+
+# With custom settings
+dart example/chat_cli.dart model.gguf \
+  --threads 8 \
+  --context 4096 \
+  --temp 0.8 \
+  --max-tokens 1024
+```
+
+## API Documentation
+
+### LlamaChat
+
+The main class for interacting with models:
+
+- `LlamaChat()` - Create a new chat instance
+- `generateResponse()` - Generate a response to the current conversation
+- `addMessage()` - Add a message to the conversation history
+- `clearHistory()` - Clear conversation history
+- `getTokenCount()` - Get current token usage
+- `dispose()` - Clean up resources
 
 ### ChatMessage
 
 Represents a message in the conversation:
 
-- `role`: Either 'system', 'user', or 'assistant'
-- `content`: The message content
-- `timestamp`: When the message was created
+```dart
+ChatMessage({
+  required String role,      // 'system', 'user', or 'assistant'
+  required String content,   // Message text
+  DateTime? timestamp,       // Optional timestamp
+})
+```
 
-### ChatRequest
+## Platform Support
 
-Parameters for a chat completion:
-
-- `messages`: List of messages in the conversation
-- `temperature`: Sampling temperature (default: 0.7)
-- `topP`: Top-p sampling parameter (default: 0.9)
-- `maxTokens`: Maximum tokens to generate (default: 512)
-- `repeatPenalty`: Penalty for repetition (default: 1.1)
-- `repeatLastN`: Number of tokens to consider for repetition (default: 64)
-- `seed`: Random seed (-1 for random)
-
-### ChatResponse
-
-The response from the model:
-
-- `content`: Generated text
-- `tokensGenerated`: Number of tokens generated
-- `generationTime`: Time taken to generate the response
+| Platform | Status | Architecture |
+|----------|--------|--------------|
+| macOS    | ✅ Supported | arm64, x86_64 |
+| Linux    | ✅ Supported | x86_64 |
+| Windows  | 🚧 Planned | x86_64 |
 
 ## Troubleshooting
 
-### Library not found
+### Library Not Found
 
-Make sure the llama.cpp shared library is in one of these locations:
-- `./lib/llama.so` (or .dylib/.dll)
-- `./build/llama.so`
-- `./llama.so`
-- System library path
+If you get a library loading error:
 
-### Model loading fails
+1. Ensure you've run `./scripts/build_llama.sh`
+2. Check that `libllama_wrapper.dylib` exists in the project root
+3. On Linux, you may need to set `LD_LIBRARY_PATH`
 
-- Ensure the model file exists and is in GGUF format
-- Check that you have enough RAM for the model
-- Verify the model is compatible with your version of llama.cpp
+### Model Loading Issues
+
+- Verify the model is in GGUF format
+- Ensure you have enough RAM (model size + overhead)
+- Check model compatibility with your llama.cpp version
+
+### Performance Tips
+
+- Use more threads for faster generation
+- Enable `useMmap` for faster model loading
+- Adjust `batchSize` based on your hardware
+- Use quantized models for better performance
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Run tests: `dart test`
+4. Run analysis: `dart analyze`
+5. Submit a pull request
 
 ## License
 
-This package is provided as-is for educational and research purposes.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - The underlying inference engine
+- The Dart FFI team for excellent documentation
+- The open-source AI community
