@@ -4,8 +4,8 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:ffi/ffi.dart';
-import 'package:llama_dart/src/ffi/llama_bindings_generated.dart';
-import 'package:llama_dart/src/models.dart';
+import 'package:dart_llama/src/ffi/llama_bindings_generated.dart';
+import 'package:dart_llama/src/models.dart';
 import 'package:path/path.dart' as path;
 
 /// Low-level interface for text generation with LLaMA models.

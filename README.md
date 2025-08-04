@@ -1,4 +1,4 @@
-# llama_dart
+# dart_llama
 
 A Dart package that provides FFI bindings to llama.cpp for running LLaMA models locally.
 
@@ -27,7 +27,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  llama_dart: ^1.0.0
+  dart_llama: ^0.1.0
 ```
 
 ### Building the Native Library
@@ -36,8 +36,8 @@ This package requires building native libraries before use. Follow these steps:
 
 ```bash
 # Clone the repository
-git clone https://github.com/leehiggins/llama_dart.git
-cd llama_dart
+git clone https://github.com/WAMF/dart_llama.git
+cd dart_llama
 
 # Build both llama.cpp and the wrapper library
 ./scripts/build_llama.sh
@@ -82,7 +82,7 @@ gcc -shared -o llama_wrapper.dll llama_wrapper.c \
 The `LlamaModel` class provides direct access to text generation without any chat-specific formatting:
 
 ```dart
-import 'package:llama_dart/llama_dart.dart';
+import 'package:dart_llama/dart_llama.dart';
 
 void main() async {
   // Create configuration

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:llama_dart/llama_dart.dart';
+import 'package:dart_llama/dart_llama.dart';
 import 'package:test/test.dart';
 
 const testModelPath = './models/gemma-3-1b-it-Q4_K_M.gguf';

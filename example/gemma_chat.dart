@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:llama_dart/llama_dart.dart';
+import 'package:dart_llama/dart_llama.dart';
 
 /// Simple chat message representation for this example.
 class ChatMessage {

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:llama_dart/llama_dart.dart';
+import 'package:dart_llama/dart_llama.dart';
 import 'package:test/test.dart';
 
 void main() {

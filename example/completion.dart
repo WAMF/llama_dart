@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:llama_dart/llama_dart.dart';
+import 'package:dart_llama/dart_llama.dart';
 
 /// Simple text completion example using the low-level LlamaModel API.
 void main(List<String> args) async {
