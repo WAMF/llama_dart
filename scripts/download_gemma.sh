@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Get the project root directory (parent of scripts)
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
 # Download Gemma 3 1B GGUF model
-MODEL_DIR="models"
+MODEL_DIR="$PROJECT_ROOT/models"
 MODEL_URL="https://huggingface.co/lmstudio-community/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf"
 MODEL_NAME="gemma-3-1b-it-Q4_K_M.gguf"
 
+echo "Project root: $PROJECT_ROOT"
 echo "Creating models directory..."
 mkdir -p "$MODEL_DIR"
 

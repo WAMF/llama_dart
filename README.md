@@ -30,18 +30,47 @@ dependencies:
 
 ### Building the Native Library
 
-This package requires the llama.cpp shared library. Use the provided script:
+This package requires building native libraries before use. Follow these steps:
 
 ```bash
 # Clone the repository
 git clone https://github.com/leehiggins/llama_dart.git
 cd llama_dart
 
-# Build llama.cpp library
+# Build both llama.cpp and the wrapper library
 ./scripts/build_llama.sh
 
-# Optional: Download a test model
+# The script will:
+# 1. Clone/update llama.cpp submodule
+# 2. Build llama.cpp as a shared library (libllama.dylib/so/dll)
+# 3. Build the wrapper library (libllama_wrapper.dylib/so/dll)
+
+# Optional: Download a test model (Gemma 3 1B)
 ./scripts/download_gemma.sh
+```
+
+#### Manual Build (Advanced)
+
+If you need to rebuild just the wrapper after making changes:
+
+```bash
+./scripts/build_wrapper.sh
+```
+
+Or build manually:
+
+```bash
+# macOS
+clang -shared -fPIC -o libllama_wrapper.dylib llama_wrapper.c \
+    -I./llama.cpp/include -L. -lllama -std=c11
+
+# Linux
+gcc -shared -fPIC -o libllama_wrapper.so llama_wrapper.c \
+    -I./llama.cpp/include -L. -lllama -std=c11
+
+# Windows
+gcc -shared -o llama_wrapper.dll llama_wrapper.c \
+    -I./llama.cpp/include -L. -lllama -std=c11
 ```
 
 ## Usage
@@ -106,6 +135,34 @@ final followUp = await chat.generateResponse();
 print(followUp);
 ```
 
+### Streaming Example
+
+```dart
+final chat = LlamaChat(
+  modelPath: 'path/to/model.gguf',
+  contextSize: 2048,
+);
+
+// Stream tokens as they are generated
+final request = ChatRequest(
+  messages: [
+    ChatMessage(role: 'user', content: 'Write a haiku about programming'),
+  ],
+);
+
+await for (final token in chat.chatStream(request)) {
+  stdout.write(token);
+}
+
+// Or use callback-based streaming
+await chat.chat(
+  request,
+  onToken: (token) {
+    stdout.write(token);
+  },
+);
+```
+
 ## Configuration
 
 ### Model Parameters
@@ -144,7 +201,8 @@ dart example/chat_cli.dart model.gguf \
   --threads 8 \
   --context 4096 \
   --temp 0.8 \
-  --max-tokens 1024
+  --max-tokens 1024 \
+  --stream
 ```
 
 ## API Documentation
@@ -154,11 +212,13 @@ dart example/chat_cli.dart model.gguf \
 The main class for interacting with models:
 
 - `LlamaChat()` - Create a new chat instance
-- `generateResponse()` - Generate a response to the current conversation
-- `addMessage()` - Add a message to the conversation history
-- `clearHistory()` - Clear conversation history
-- `getTokenCount()` - Get current token usage
+- `chat()` - Generate a response with optional streaming callback
+- `chatStream()` - Generate a response as a stream of tokens
 - `dispose()` - Clean up resources
+
+Methods:
+- `chat(request, {onToken})` - Generate response with optional token callback
+- `chatStream(request)` - Returns a Stream<String> of generated tokens
 
 ### ChatMessage
 
@@ -186,9 +246,14 @@ ChatMessage({
 
 If you get a library loading error:
 
-1. Ensure you've run `./scripts/build_llama.sh`
-2. Check that `libllama_wrapper.dylib` exists in the project root
-3. On Linux, you may need to set `LD_LIBRARY_PATH`
+1. Ensure you've run `./scripts/build_llama.sh` to build both libraries
+2. Check that both libraries exist in the project root:
+   - `libllama.dylib` (or `.so` on Linux, `.dll` on Windows)
+   - `libllama_wrapper.dylib` (or `.so` on Linux, `.dll` on Windows)
+3. On Linux, you may need to set `LD_LIBRARY_PATH`:
+   ```bash
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+   ```
 
 ### Model Loading Issues
 

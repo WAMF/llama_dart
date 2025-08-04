@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Initial setup
-./scripts/build_llama.sh          # Build llama.cpp shared library (required)
+./scripts/build_llama.sh          # Build llama.cpp and wrapper libraries (required)
+./scripts/build_wrapper.sh        # Build only wrapper library (if llama.cpp already built)
 ./scripts/download_gemma.sh       # Download Gemma 3 1B model for testing
 dart pub get                      # Install Dart dependencies
 

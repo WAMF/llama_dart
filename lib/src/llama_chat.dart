@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
@@ -70,7 +71,7 @@ class LlamaChat {
     _initialized = true;
   }
 
-  Future<ChatResponse> chat(ChatRequest request) async {
+  Future<ChatResponse> chat(ChatRequest request, {void Function(String)? onToken}) async {
     if (!_initialized) {
       throw StateError('LlamaChat not initialized. Call initialize() first.');
     }
@@ -161,7 +162,9 @@ class LlamaChat {
       final length = _bindings.llama_token_to_piece_wrapper(_vocab, id, bufferUtf8.cast<Char>(), bufferSize, 0, false);
       
       if (length > 0) {
-        responseBuffer.write(bufferUtf8.toDartString(length: length));
+        final token = bufferUtf8.toDartString(length: length);
+        responseBuffer.write(token);
+        onToken?.call(token);
       }
       
       calloc.free(buffer);
@@ -236,6 +239,102 @@ class LlamaChat {
     throw Exception(
       'Could not find llama library. Searched: ${possiblePaths.join(', ')}',
     );
+  }
+
+  Stream<String> chatStream(ChatRequest request) async* {
+    if (!_initialized) {
+      throw StateError('LlamaChat not initialized. Call initialize() first.');
+    }
+
+    // Always reset sampler for fresh generation
+    _bindings.llama_sampler_reset_wrapper(_sampler);
+    
+    final prompt = _buildPrompt(request.messages);
+    final promptPtr = prompt.toNativeUtf8();
+    
+    final promptLength = prompt.length;
+    final maxPromptTokens = config.contextSize;
+    final tokensPtr = calloc<Int32>(maxPromptTokens);
+    
+    final nTokens = _bindings.llama_tokenize_wrapper(
+      _vocab,
+      promptPtr.cast<Char>(),
+      promptLength,
+      tokensPtr,
+      maxPromptTokens,
+      true,
+      false,
+    );
+    
+    if (nTokens < 0) {
+      calloc.free(promptPtr);
+      calloc.free(tokensPtr);
+      throw Exception('Tokenization failed. Prompt length: $promptLength, max tokens: $maxPromptTokens, result: $nTokens');
+    }
+    
+    if (nTokens > config.batchSize) {
+      calloc.free(promptPtr);
+      calloc.free(tokensPtr);
+      throw Exception('Prompt too long: $nTokens tokens exceeds batch size of ${config.batchSize}');
+    }
+    
+    final batch = _bindings.llama_batch_get_one_wrapper(tokensPtr, nTokens);
+    final decodeResult = _bindings.llama_decode_wrapper(_context, batch);
+    
+    if (decodeResult != 0) {
+      calloc.free(promptPtr);
+      calloc.free(tokensPtr);
+      throw Exception('Decode failed');
+    }
+    
+    final lastNTokensPtr = calloc<Int32>(request.repeatLastN);
+    for (var i = 0; i < min(request.repeatLastN, nTokens); i++) {
+      lastNTokensPtr[i] = tokensPtr[max(0, nTokens - request.repeatLastN + i)];
+    }
+    
+    final eosToken = _bindings.llama_token_eos_wrapper();
+    
+    for (var i = 0; i < request.maxTokens; i++) {
+      final id = _bindings.llama_sampler_sample_wrapper(_sampler, _context, -1);
+      
+      if (id == eosToken) break;
+      
+      for (var j = 0; j < request.repeatLastN - 1; j++) {
+        lastNTokensPtr[j] = lastNTokensPtr[j + 1];
+      }
+      lastNTokensPtr[request.repeatLastN - 1] = id;
+      
+      final tokenIdPtr = calloc<Int32>(1);
+      tokenIdPtr[0] = id;
+      
+      final batch = _bindings.llama_batch_get_one_wrapper(tokenIdPtr, 1);
+      final decodeResult = _bindings.llama_decode_wrapper(_context, batch);
+      
+      calloc.free(tokenIdPtr);
+      
+      if (decodeResult != 0) {
+        calloc.free(promptPtr);
+        calloc.free(tokensPtr);
+        calloc.free(lastNTokensPtr);
+        throw Exception('Decode failed during generation');
+      }
+      
+      final bufferSize = 32;
+      final buffer = calloc<Uint8>(bufferSize);
+      final bufferUtf8 = buffer.cast<Utf8>();
+      final length = _bindings.llama_token_to_piece_wrapper(_vocab, id, bufferUtf8.cast<Char>(), bufferSize, 0, false);
+      
+      if (length > 0) {
+        final token = bufferUtf8.toDartString(length: length);
+        yield token;
+      }
+      
+      calloc.free(buffer);
+    }
+    
+    calloc.free(promptPtr);
+    calloc.free(tokensPtr);
+    calloc.free(lastNTokensPtr);
   }
 
   void dispose() {

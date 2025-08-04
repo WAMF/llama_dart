@@ -20,6 +20,7 @@ void main(List<String> args) async {
       print('  --temp <f>         Temperature (default: 0.7)');
       print('  --top-p <f>        Top-p sampling (default: 0.9)');
       print('  --max-tokens <n>   Max tokens to generate (default: 512)');
+      print('  --stream           Enable streaming output');
       exit(1);
     }
   } else {
@@ -32,6 +33,7 @@ void main(List<String> args) async {
   var temperature = 0.7;
   var topP = 0.9;
   var maxTokens = 512;
+  var enableStreaming = false;
 
   for (var i = 1; i < args.length; i++) {
     switch (args[i]) {
@@ -53,6 +55,9 @@ void main(List<String> args) async {
       case '--max-tokens':
         maxTokens = int.parse(args[++i]);
         break;
+      case '--stream':
+        enableStreaming = true;
+        break;
     }
   }
 
@@ -71,6 +76,7 @@ void main(List<String> args) async {
   print('Temperature: $temperature');
   print('Top-p: $topP');
   print('Max tokens: $maxTokens');
+  print('Streaming: ${enableStreaming ? "enabled" : "disabled"}');
   print('');
 
   final config = LlamaConfig(
@@ -130,17 +136,39 @@ void main(List<String> args) async {
       );
 
       try {
-        final response = await llama.chat(request);
-        
-        print(response.content.trimRight());
-        print('');
-        print('(Generated ${response.tokensGenerated} tokens in ${response.generationTime.inMilliseconds}ms)');
-        print('');
+        if (enableStreaming) {
+          final responseBuffer = StringBuffer();
+          final startTime = DateTime.now();
+          
+          await for (final token in llama.chatStream(request)) {
+            stdout.write(token);
+            responseBuffer.write(token);
+          }
+          
+          final endTime = DateTime.now();
+          final duration = endTime.difference(startTime);
+          
+          print('');
+          print('(Streamed response in ${duration.inMilliseconds}ms)');
+          print('');
 
-        messages.add(ChatMessage(
-          role: 'assistant',
-          content: response.content.trimRight(),
-        ));
+          messages.add(ChatMessage(
+            role: 'assistant',
+            content: responseBuffer.toString().trimRight(),
+          ));
+        } else {
+          final response = await llama.chat(request);
+          
+          print(response.content.trimRight());
+          print('');
+          print('(Generated ${response.tokensGenerated} tokens in ${response.generationTime.inMilliseconds}ms)');
+          print('');
+
+          messages.add(ChatMessage(
+            role: 'assistant',
+            content: response.content.trimRight(),
+          ));
+        }
       } catch (e) {
         print('Error: $e');
       }
