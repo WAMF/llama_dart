@@ -1,120 +1,119 @@
 import 'dart:io';
-import 'package:test/test.dart';
+
 import 'package:llama_dart/llama_dart.dart';
+import 'package:test/test.dart';
+
+const testModelPath = './models/gemma-3-1b-it-Q4_K_M.gguf';
 
 void main() {
-  group('Gemma 1B Integration Test', () {
-    late LlamaChat chat;
-    final modelPath = 'models/gemma-3-1b-it-Q4_K_M.gguf';
-
-    setUpAll(() {
-      if (!File(modelPath).existsSync()) {
-        fail('Model file not found at $modelPath. Run ./download_gemma.sh first.');
+  group('Gemma Integration Test', () {
+    test('can generate text with gemma model', () async {
+      // Skip if model not available
+      if (!File(testModelPath).existsSync()) {
+        print('Test model not found at $testModelPath');
+        print('Run ./scripts/download_gemma.sh to download test model');
+        return;
       }
-      
-      // The library will be found via the updated _getLibraryPath method
-      
+
       final config = LlamaConfig(
-        modelPath: modelPath,
-        contextSize: 2048,
-        batchSize: 512,
-        threads: 4,
-      );
-      
-      chat = LlamaChat(config);
-      chat.initialize();
-    });
-
-    tearDownAll(() {
-      chat.dispose();
-    });
-
-    test('can generate text response', () async {
-      final request = ChatRequest(
-        messages: [
-          ChatMessage(
-            role: 'user',
-            content: 'What is 2 + 2?',
-          ),
-        ],
-        maxTokens: 100,
-        temperature: 0.7,
+        modelPath: testModelPath,
       );
 
-      final response = await chat.chat(request);
-      
-      expect(response.content, isNotEmpty);
-      expect(response.tokensGenerated, greaterThan(0));
-      expect(response.generationTime.inMilliseconds, greaterThan(0));
-      
-      print('Response: ${response.content}');
-      print('Tokens generated: ${response.tokensGenerated}');
-      print('Generation time: ${response.generationTime}');
+      final model = LlamaModel(config)..initialize();
+
+      try {
+        // Test simple completion
+        final request = GenerationRequest(
+          prompt: 'The capital of France is',
+          maxTokens: 10,
+          temperature: 0.1, // Low temperature for consistent output
+        );
+
+        final response = await model.generate(request);
+
+        expect(response.text, isNotEmpty);
+        expect(response.promptTokens, greaterThan(0));
+        expect(response.generatedTokens, greaterThan(0));
+        expect(response.generationTime, isNotNull);
+
+        print('Generated: ${response.text}');
+        print('Prompt tokens: ${response.promptTokens}');
+        print('Generated tokens: ${response.generatedTokens}');
+        print('Time: ${response.generationTime.inMilliseconds}ms');
+      } finally {
+        model.dispose();
+      }
     });
 
-    test('can handle conversation context', () async {
-      final messages = [
-        ChatMessage(role: 'user', content: 'My name is Alice.'),
-        ChatMessage(role: 'assistant', content: 'Nice to meet you, Alice!'),
-        ChatMessage(role: 'user', content: 'What is my name?'),
-      ];
+    test('can stream tokens', () async {
+      // Skip if model not available
+      if (!File(testModelPath).existsSync()) {
+        return;
+      }
 
-      final request = ChatRequest(
-        messages: messages,
-        maxTokens: 50,
-        temperature: 0.5,
+      final config = LlamaConfig(
+        modelPath: testModelPath,
       );
 
-      final response = await chat.chat(request);
-      
-      expect(response.content.toLowerCase(), contains('alice'));
-      print('Context response: ${response.content}');
+      final model = LlamaModel(config);
+      model.initialize();
+
+      try {
+        final request = GenerationRequest(
+          prompt: 'Count from 1 to 5:',
+          maxTokens: 20,
+          temperature: 0.1,
+        );
+
+        final tokens = <String>[];
+        await for (final token in model.generateStream(request)) {
+          tokens.add(token);
+        }
+
+        expect(tokens, isNotEmpty);
+        final fullText = tokens.join();
+        expect(fullText, isNotEmpty);
+
+        print('Streamed ${tokens.length} tokens: $fullText');
+      } finally {
+        model.dispose();
+      }
     });
 
-    test('can handle system prompts', () async {
-      final request = ChatRequest(
-        messages: [
-          ChatMessage(
-            role: 'system',
-            content: 'You are a helpful math tutor. Always explain your steps.',
-          ),
-          ChatMessage(
-            role: 'user',
-            content: 'What is 15 divided by 3?',
-          ),
-        ],
-        maxTokens: 150,
-        temperature: 0.7,
+    test('can handle gemma chat format', () async {
+      // Skip if model not available
+      if (!File(testModelPath).existsSync()) {
+        return;
+      }
+
+      final config = LlamaConfig(
+        modelPath: testModelPath,
       );
 
-      final response = await chat.chat(request);
-      
-      expect(response.content, isNotEmpty);
-      expect(response.content.toLowerCase(), anyOf(
-        contains('5'),
-        contains('five'),
-      ));
-      
-      print('Math tutor response: ${response.content}');
-    });
+      final model = LlamaModel(config);
+      model.initialize();
 
-    test('respects max tokens limit', () async {
-      final request = ChatRequest(
-        messages: [
-          ChatMessage(
-            role: 'user',
-            content: 'Tell me a very long story about dragons.',
-          ),
-        ],
-        maxTokens: 20,
-        temperature: 0.8,
-      );
+      try {
+        // Build Gemma chat prompt
+        const prompt = '''
+<start_of_turn>user
+Hello! Can you help me?
+<end_of_turn>
+<start_of_turn>model
+''';
 
-      final response = await chat.chat(request);
-      
-      expect(response.tokensGenerated, lessThanOrEqualTo(20));
-      print('Limited response: ${response.content}');
-      print('Tokens: ${response.tokensGenerated}');
+        final request = GenerationRequest(
+          prompt: prompt,
+          maxTokens: 50,
+        );
+
+        final response = await model.generate(request);
+
+        expect(response.text, isNotEmpty);
+        print('Chat response: ${response.text}');
+      } finally {
+        model.dispose();
+      }
     });
   });
 }

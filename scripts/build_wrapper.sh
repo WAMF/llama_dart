@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -21,7 +22,7 @@ fi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     echo "Building for macOS..."
-    clang -shared -fPIC -o libllama_wrapper.dylib llama_wrapper.c \
+    clang -dynamiclib -fPIC -o libllama_wrapper.dylib llama_wrapper.c \
         -I./llama.cpp/include -I./llama.cpp/ggml/include -L. -lllama -std=c11 \
         -Wl,-rpath,@loader_path
     if [ -f "libllama_wrapper.dylib" ]; then

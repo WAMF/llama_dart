@@ -1,10 +1,24 @@
-include: package:lints/recommended.yaml
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
   exclude:
     - lib/src/ffi/llama_bindings_generated.dart
+  errors:
+    # Allow for demo/example code
+    unused_local_variable: ignore
+    # FFI code often needs specific patterns
+    avoid_positional_boolean_parameters: ignore
 
 linter:
   rules:
-    - always_declare_return_types
-    - prefer_single_quotes
+    # Disable some rules that conflict with FFI patterns
+    avoid_dynamic_calls: false
+    # Allow print statements in CLI examples
+    avoid_print: false
+    # FFI code often needs underscores
+    no_leading_underscores_for_local_identifiers: false
+    # Allow TODO comments
+    flutter_style_todos: false
+
+    # Ignore lines that are too long
+    lines_longer_than_80_chars: ignore

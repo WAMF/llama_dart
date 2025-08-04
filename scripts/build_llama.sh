@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -51,47 +52,11 @@ fi
 
 echo "llama.cpp build complete!"
 
-# Build the wrapper library
-cd "$PROJECT_ROOT"
+# Build the wrapper library using the dedicated script
 echo ""
 echo "Building llama_wrapper library..."
-
-# Compile the wrapper library
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    clang -shared -fPIC -o libllama_wrapper.dylib llama_wrapper.c \
-        -I./llama.cpp/include -I./llama.cpp/ggml/include -L. -lllama -std=c11 \
-        -Wl,-rpath,@loader_path
-    if [ -f "libllama_wrapper.dylib" ]; then
-        echo "Wrapper library built: libllama_wrapper.dylib"
-    else
-        echo "Error: Failed to build wrapper library"
-        exit 1
-    fi
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux
-    gcc -shared -fPIC -o libllama_wrapper.so llama_wrapper.c \
-        -I./llama.cpp/include -I./llama.cpp/ggml/include -L. -lllama -std=c11
-    if [ -f "libllama_wrapper.so" ]; then
-        echo "Wrapper library built: libllama_wrapper.so"
-    else
-        echo "Error: Failed to build wrapper library"
-        exit 1
-    fi
-elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    # Windows
-    gcc -shared -o llama_wrapper.dll llama_wrapper.c \
-        -I./llama.cpp/include -I./llama.cpp/ggml/include -L. -lllama -std=c11
-    if [ -f "llama_wrapper.dll" ]; then
-        echo "Wrapper library built: llama_wrapper.dll"
-    else
-        echo "Error: Failed to build wrapper library"
-        exit 1
-    fi
-else
-    echo "Error: Unsupported operating system"
-    exit 1
-fi
+cd "$PROJECT_ROOT"
+"$SCRIPT_DIR/build_wrapper.sh"
 
 echo ""
 echo "Build complete!"

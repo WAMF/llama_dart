@@ -1,11 +1,13 @@
 # llama_dart
 
-A Dart package that provides FFI bindings to llama.cpp for running LLaMA models with a simple chat API.
+A Dart package that provides FFI bindings to llama.cpp for running LLaMA models locally.
 
 ## Features
 
 - **FFI-based bindings** - Direct integration with llama.cpp for maximum performance
-- **Simple chat API** - High-level interface for conversational AI
+- **Low-level API** - Full control over text generation without opinionated abstractions
+- **Streaming support** - Real-time token generation with proper stop sequence handling
+- **Stop sequences** - Configurable stop sequences for controlling generation boundaries
 - **Configurable parameters** - Fine-tune model behavior with temperature, top-p, and repetition settings
 - **Memory efficient** - Support for memory mapping and model locking
 - **Cross-platform** - Works on macOS, Linux, and Windows (planned)
@@ -75,129 +77,156 @@ gcc -shared -o llama_wrapper.dll llama_wrapper.c \
 
 ## Usage
 
-### Basic Example
+### Low-Level Text Generation API (Recommended)
+
+The `LlamaModel` class provides direct access to text generation without any chat-specific formatting:
 
 ```dart
 import 'package:llama_dart/llama_dart.dart';
 
 void main() async {
-  // Initialize the chat with a model
-  final chat = LlamaChat(
+  // Create configuration
+  final config = LlamaConfig(
     modelPath: 'models/gemma-3-1b-it-Q4_K_M.gguf',
     contextSize: 2048,
     threads: 4,
   );
 
-  // Send a message
-  final response = await chat.generateResponse(
-    'Tell me a short story about a robot.',
+  // Initialize the model
+  final model = LlamaModel(config);
+  model.initialize();
+
+  // Create a generation request
+  final request = GenerationRequest(
+    prompt: 'Once upon a time in a galaxy far, far away',
     temperature: 0.7,
     maxTokens: 256,
   );
 
-  print(response);
+  // Generate text
+  final response = await model.generate(request);
+  print(response.text);
 
   // Clean up
-  chat.dispose();
+  model.dispose();
 }
 ```
 
-### Conversation Example
+### Streaming Generation
 
 ```dart
-final chat = LlamaChat(
-  modelPath: 'path/to/model.gguf',
-  contextSize: 4096,
-);
-
-// Add system prompt
-chat.addMessage(ChatMessage(
-  role: 'system',
-  content: 'You are a helpful coding assistant.',
-));
-
-// Have a conversation
-chat.addMessage(ChatMessage(
-  role: 'user',
-  content: 'How do I read a file in Dart?',
-));
-
-final response = await chat.generateResponse();
-print(response);
-
-// Continue the conversation
-chat.addMessage(ChatMessage(
-  role: 'user',
-  content: 'Can you show me an async example?',
-));
-
-final followUp = await chat.generateResponse();
-print(followUp);
-```
-
-### Streaming Example
-
-```dart
-final chat = LlamaChat(
-  modelPath: 'path/to/model.gguf',
-  contextSize: 2048,
-);
-
 // Stream tokens as they are generated
-final request = ChatRequest(
-  messages: [
-    ChatMessage(role: 'user', content: 'Write a haiku about programming'),
-  ],
+final request = GenerationRequest(
+  prompt: 'Write a haiku about programming',
+  temperature: 0.8,
+  maxTokens: 50,
 );
 
-await for (final token in chat.chatStream(request)) {
+await for (final token in model.generateStream(request)) {
   stdout.write(token);
 }
-
-// Or use callback-based streaming
-await chat.chat(
-  request,
-  onToken: (token) {
-    stdout.write(token);
-  },
-);
 ```
+
+### Building Chat Interfaces
+
+Different models expect different chat formats. Use the low-level `LlamaModel` API to implement model-specific formatting:
+
+```dart
+// Example: Gemma chat format
+String buildGemmaPrompt(List<ChatMessage> messages) {
+  final buffer = StringBuffer();
+  
+  // Gemma requires <bos> token at the beginning
+  buffer.write('<bos>');
+  
+  for (final message in messages) {
+    if (message.role == 'user') {
+      buffer
+        ..writeln('<start_of_turn>user')
+        ..writeln(message.content)
+        ..writeln('<end_of_turn>');
+    } else if (message.role == 'assistant') {
+      buffer
+        ..writeln('<start_of_turn>model')
+        ..writeln(message.content)
+        ..writeln('<end_of_turn>');
+    }
+  }
+  
+  buffer.write('<start_of_turn>model\n');
+  return buffer.toString();
+}
+
+// Use with LlamaModel and stop sequences
+final prompt = buildGemmaPrompt(messages);
+final request = GenerationRequest(
+  prompt: prompt,
+  stopSequences: ['<end_of_turn>'], // Stop at turn boundaries
+);
+final response = await model.generate(request);
+```
+
+See `example/gemma_chat.dart` for a complete Gemma chat implementation.
+
 
 ## Configuration
 
-### Model Parameters
+### Model Configuration
 
 ```dart
-final chat = LlamaChat(
+final config = LlamaConfig(
   modelPath: 'model.gguf',
   
   // Context and performance
   contextSize: 4096,        // Maximum context window
-  batchSize: 512,          // Batch size for processing
+  batchSize: 2048,         // Batch size for processing
   threads: 8,              // Number of CPU threads
   
   // Memory options
   useMmap: true,           // Memory-map the model
   useMlock: false,         // Lock model in RAM
+);
+
+final model = LlamaModel(config);
+```
+
+### Generation Parameters
+
+```dart
+final request = GenerationRequest(
+  prompt: 'Your prompt here',
   
-  // Generation defaults
+  // Sampling parameters
   temperature: 0.7,        // Creativity level (0.0-1.0)
   topP: 0.9,              // Nucleus sampling threshold
+  topK: 40,               // Top-k sampling
+  
+  // Generation control
+  maxTokens: 512,          // Maximum tokens to generate
   repeatPenalty: 1.1,      // Repetition penalty
-  seed: -1,               // -1 for random seed
+  repeatLastN: 64,         // Context for repetition check
+  seed: -1,               // Random seed (-1 for random)
 );
 ```
 
-## Example CLI
+## Examples
 
-Try the included CLI example:
-
+### Text Completion
 ```bash
-# Basic usage
-dart example/chat_cli.dart models/gemma-3-1b-it-Q4_K_M.gguf
+# Simple completion
+dart example/completion.dart model.gguf "Once upon a time"
+
+# With streaming
+dart example/completion.dart model.gguf "Write a poem about" --stream
+```
+
+### Gemma Chat
+```bash
+# Interactive Gemma chat
+dart example/gemma_chat.dart models/gemma-3-1b-it-Q4_K_M.gguf
 
 # With custom settings
-dart example/chat_cli.dart model.gguf \
+dart example/gemma_chat.dart model.gguf \
   --threads 8 \
   --context 4096 \
   --temp 0.8 \
@@ -205,32 +234,67 @@ dart example/chat_cli.dart model.gguf \
   --stream
 ```
 
+
 ## API Documentation
 
-### LlamaChat
+### LlamaModel
 
-The main class for interacting with models:
+Low-level interface for text generation:
 
-- `LlamaChat()` - Create a new chat instance
-- `chat()` - Generate a response with optional streaming callback
-- `chatStream()` - Generate a response as a stream of tokens
+- `LlamaModel(config)` - Create a new model instance
+- `initialize()` - Initialize the model and context
+- `generate(request, {onToken})` - Generate text with optional token callback
+- `generateStream(request)` - Generate text as a stream of tokens
 - `dispose()` - Clean up resources
 
-Methods:
-- `chat(request, {onToken})` - Generate response with optional token callback
-- `chatStream(request)` - Returns a Stream<String> of generated tokens
+### LlamaConfig
 
-### ChatMessage
-
-Represents a message in the conversation:
+Configuration for the LLaMA model:
 
 ```dart
-ChatMessage({
-  required String role,      // 'system', 'user', or 'assistant'
-  required String content,   // Message text
-  DateTime? timestamp,       // Optional timestamp
+LlamaConfig({
+  required String modelPath,   // Path to GGUF model file
+  int contextSize = 2048,      // Maximum context window
+  int batchSize = 2048,        // Batch size for processing
+  int threads = 4,             // Number of CPU threads
+  bool useMmap = true,         // Memory-map the model
+  bool useMlock = false,       // Lock model in RAM
 })
 ```
+
+### GenerationRequest
+
+Parameters for text generation:
+
+```dart
+GenerationRequest({
+  required String prompt,               // Input text prompt
+  int maxTokens = 512,                 // Maximum tokens to generate
+  double temperature = 0.7,             // Creativity (0.0-1.0)
+  double topP = 0.9,                   // Nucleus sampling threshold
+  int topK = 40,                       // Top-k sampling
+  double repeatPenalty = 1.1,          // Repetition penalty
+  int repeatLastN = 64,                // Context for repetition check
+  int seed = -1,                       // Random seed (-1 for random)
+  List<String> stopSequences = const [],// Stop generation at these sequences
+})
+```
+
+### GenerationResponse
+
+Response from text generation:
+
+```dart
+GenerationResponse({
+  String text,                         // Generated text
+  int promptTokens,                    // Number of prompt tokens
+  int generatedTokens,                 // Number of generated tokens
+  int totalTokens,                     // Total tokens processed
+  Duration generationTime,             // Time taken to generate
+})
+```
+
+
 
 ## Platform Support
 

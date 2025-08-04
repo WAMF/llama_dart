@@ -1,7 +1,8 @@
 import 'dart:ffi';
 import 'dart:io';
-import 'package:test/test.dart';
+
 import 'package:llama_dart/src/ffi/llama_bindings_generated.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('LlamaBindings', () {

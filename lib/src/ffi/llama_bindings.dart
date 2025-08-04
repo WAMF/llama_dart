@@ -1,4 +1,8 @@
-// ignore_for_file: non_constant_identifier_names
+// Manual FFI bindings for llama.cpp wrapper functions.
+// These are hand-written bindings for custom wrapper functions.
+// Non-constant names match the C function naming conventions.
+// Public APIs are documented but internal typedefs and fields are self-explanatory.
+// ignore_for_file: non_constant_identifier_names, public_member_api_docs, lines_longer_than_80_chars
 
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
@@ -255,37 +259,6 @@ typedef LlamaNEmbdNative = Int32 Function(Pointer<LlamaModel> model);
 typedef LlamaNEmbd = int Function(Pointer<LlamaModel> model);
 
 class LlamaBindings {
-  final DynamicLibrary _lib;
-  
-  late final LlamaBackendInit backendInit;
-  late final LlamaModelDefaultParams modelDefaultParams;
-  late final LlamaContextDefaultParams contextDefaultParams;
-  late final LlamaModelLoadFromFile modelLoadFromFile;
-  late final LlamaInitFromModel initFromModel;
-  late final LlamaFreeModel freeModel;
-  late final LlamaFree free;
-  late final LlamaTokenize tokenize;
-  late final LlamaDecode decode;
-  late final LlamaBatchGetOne batchGetOne;
-  late final LlamaSamplerChainDefaultParams samplerChainDefaultParams;
-  late final LlamaSamplerChainInit samplerChainInit;
-  late final LlamaSamplerChainAdd samplerChainAdd;
-  late final LlamaSamplerInitTopK samplerInitTopK;
-  late final LlamaSamplerInitTopP samplerInitTopP;
-  late final LlamaSamplerInitTemp samplerInitTemp;
-  late final LlamaSamplerInitDist samplerInitDist;
-  late final LlamaSamplerSample samplerSample;
-  late final LlamaSamplerFree samplerFree;
-  late final LlamaModelGetVocab modelGetVocab;
-  late final LlamaTokenToPiece tokenToPiece;
-  late final LlamaGetLogits getLogits;
-  late final LlamaGetEmbeddings getEmbeddings;
-  late final LlamaTokenBos tokenBos;
-  late final LlamaTokenEos tokenEos;
-  late final LlamaTokenNl tokenNl;
-  // late final LlamaNVocab nVocab;
-  late final LlamaNCtx nCtx;
-  late final LlamaNEmbd nEmbd;
   
   LlamaBindings(this._lib) {
     backendInit = _lib.lookupFunction<LlamaBackendInitNative, LlamaBackendInit>(
@@ -396,4 +369,35 @@ class LlamaBindings {
     
     nEmbd = _lib.lookupFunction<LlamaNEmbdNative, LlamaNEmbd>('llama_model_n_embd_wrapper');
   }
+  final DynamicLibrary _lib;
+  
+  late final LlamaBackendInit backendInit;
+  late final LlamaModelDefaultParams modelDefaultParams;
+  late final LlamaContextDefaultParams contextDefaultParams;
+  late final LlamaModelLoadFromFile modelLoadFromFile;
+  late final LlamaInitFromModel initFromModel;
+  late final LlamaFreeModel freeModel;
+  late final LlamaFree free;
+  late final LlamaTokenize tokenize;
+  late final LlamaDecode decode;
+  late final LlamaBatchGetOne batchGetOne;
+  late final LlamaSamplerChainDefaultParams samplerChainDefaultParams;
+  late final LlamaSamplerChainInit samplerChainInit;
+  late final LlamaSamplerChainAdd samplerChainAdd;
+  late final LlamaSamplerInitTopK samplerInitTopK;
+  late final LlamaSamplerInitTopP samplerInitTopP;
+  late final LlamaSamplerInitTemp samplerInitTemp;
+  late final LlamaSamplerInitDist samplerInitDist;
+  late final LlamaSamplerSample samplerSample;
+  late final LlamaSamplerFree samplerFree;
+  late final LlamaModelGetVocab modelGetVocab;
+  late final LlamaTokenToPiece tokenToPiece;
+  late final LlamaGetLogits getLogits;
+  late final LlamaGetEmbeddings getEmbeddings;
+  late final LlamaTokenBos tokenBos;
+  late final LlamaTokenEos tokenEos;
+  late final LlamaTokenNl tokenNl;
+  // late final LlamaNVocab nVocab;
+  late final LlamaNCtx nCtx;
+  late final LlamaNEmbd nEmbd;
 }
