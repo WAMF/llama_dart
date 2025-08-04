@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 - 2025-08-04
+
+### Documentation
+
+- Added comprehensive documentation comments to all public API elements
+- Added library-level documentation with examples and getting started guide
+- Documented all `GenerationRequest` parameters with usage guidance
+- Documented all `LlamaConfig` parameters with recommendations
+- Improved overall API documentation coverage from 26.5% to 100%
+
 ## 0.1.0 - 2025-08-04
 
 ### Initial Release
