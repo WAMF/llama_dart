@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 - 2025-08-05
+
+### Changed
+
+- Renamed `example/completion.dart` to `example/main.dart` for better pub.dev scoring
+- Added comprehensive documentation for `GenerationResponse` class and all its properties
+
 ## 0.1.1 - 2025-08-04
 
 ### Documentation
