@@ -122,8 +122,14 @@ class GenerationRequest {
   final List<String> stopSequences;
 }
 
-/// Response from text generation
+/// Response from text generation.
+/// 
+/// This class contains the generated text and metadata about the generation process,
+/// including token counts and timing information.
 class GenerationResponse {
+  /// Creates a generation response with the specified values.
+  /// 
+  /// All parameters are required and represent the outcome of a text generation request.
   GenerationResponse({
     required this.text,
     required this.promptTokens,
@@ -132,9 +138,18 @@ class GenerationResponse {
     required this.generationTime,
   });
 
+  /// The generated text output.
   final String text;
+  
+  /// Number of tokens in the input prompt.
   final int promptTokens;
+  
+  /// Number of tokens generated in the response.
   final int generatedTokens;
+  
+  /// Total number of tokens processed (prompt + generated).
   final int totalTokens;
+  
+  /// Time taken to generate the response.
   final Duration generationTime;
 }
